@@ -301,12 +301,34 @@ input[type=range]{width:190px;accent-color:var(--accent)}
 /* training section */
 .train{margin-top:56px}
 .train h2{font-size:23px;margin-bottom:12px}
-.train p{max-width:66ch;color:var(--ink2);font-size:15px}
+.train>p{max-width:66ch;color:var(--ink2);font-size:15px}
 .train b{color:var(--ink)}
 .loop{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:18px 0;font-size:13.5px}
 .loop .step{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 14px;box-shadow:var(--shadow)}
 .loop .arr{color:var(--accent);font-weight:600}
 .loop .back{color:var(--amber);font-weight:600;font-size:12.5px}
+#trainSent{display:flex;flex-wrap:wrap;gap:5px;margin:14px 0 18px;align-items:center}
+#trainSent .tok.ctx{background:var(--accent-soft);border-color:var(--accent)}
+#trainSent .tok.tgt{background:var(--amber-soft);border-color:var(--amber)}
+.tr-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:24px;align-items:start}
+@media (max-width:700px){.tr-grid{grid-template-columns:1fr}}
+#trainCtx{font-size:14.5px;color:var(--ink2);margin-bottom:10px;min-height:24px}
+#trainCtx b{color:var(--ink)}
+#trainCtx .lossv{font-family:"JetBrains Mono",monospace;color:var(--amber);font-weight:600}
+#trainBars .brow.tgt .bfill{background:var(--good)}
+#trainBars .brow.tgt .bw{color:var(--good);font-weight:600}
+#lossChart{display:block;width:100%;height:160px}
+.losslbl{font-size:12.5px;font-weight:600;color:var(--ink2);margin-bottom:6px}
+.losslbl .mono{color:var(--ink3);font-weight:400;font-size:11px}
+#trStats{display:flex;gap:18px;margin-top:8px;font-size:12.5px;color:var(--ink3)}
+#trStats .v{font-family:"JetBrains Mono",monospace;color:var(--ink);font-variant-numeric:tabular-nums}
+#trGenOut{margin-top:14px;display:none}
+#trGenOut .genline{padding:10px 14px;border-radius:8px;margin-top:8px;font-size:15px}
+#trGenOut .before{background:var(--surface2);color:var(--ink3)}
+#trGenOut .after{border:1px solid var(--good);color:var(--ink)}
+#trGenOut .cap{font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;color:var(--ink3)}
+.trctrl{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin:18px 0 0}
+.trhint{font-size:13px;color:var(--ink3);margin-top:12px;max-width:70ch}
 
 footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var(--line);padding-top:20px}
 </style>
@@ -483,17 +505,65 @@ footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var
   </table></div>
 </section>
 
-<section class="train">
-  <h2>А звідки модель усе це знає? Навчання</h2>
-  <p>Усе, що ви бачили вище, — це <b>використання</b> готової моделі. Але ваги уваги, вектори слів і логіти не написані людьми — модель <b>вивчила їх сама</b> на одній простій грі: їй показують шматок справжнього тексту з інтернету й книжок і просять вгадати наступний токен.</p>
+<section class="train" id="trainSec">
+  <p class="st-eyebrow" style="margin-bottom:6px">Бонус · Тренажер</p>
+  <h2>А звідки модель усе це знає? Навчіть її самі</h2>
+  <p>Усе, що вище, — <b>використання</b> готової моделі. Але ваги ніхто не писав руками: модель <b>вивчила їх сама</b> на грі «вгадай наступний токен». Нижче — модель-початківець, у якої всі логіти нульові: вона не знає взагалі нічого. Тренуйте її і дивіться, як падає помилка.</p>
   <div class="loop" role="img" aria-label="Цикл навчання моделі">
     <span class="step">📖 шматок тексту</span><span class="arr">→</span>
-    <span class="step">🤖 модель вгадує наступний токен</span><span class="arr">→</span>
-    <span class="step">📏 порівнюємо зі справжнім</span><span class="arr">→</span>
-    <span class="step">🔧 трохи підправляємо ваги</span>
+    <span class="step">🤖 модель вгадує токен</span><span class="arr">→</span>
+    <span class="step">📏 рахуємо помилку</span><span class="arr">→</span>
+    <span class="step">🔧 зсуваємо ваги за градієнтом</span>
     <span class="back">⟲ і так трильйони разів</span>
   </div>
-  <p>Кожна помилка ледь-ледь зсуває мільярди чисел у бік правильної відповіді (це називається <b>зворотним поширенням помилки</b>). Після трильйонів таких кроків вектор «кіт» сам опиняється поруч із «муркоче», а увага сама вчиться шукати підмет для дієслова — ніхто не програмував цих правил уручну. Уся «поведінка» моделі, яку ви щойно крутили руками, — це побічний ефект однієї гри у вгадування наступного слова.</p>
+  <div class="panel">
+    <div class="lbl" style="font:600 11px/1 'IBM Plex Sans',sans-serif;letter-spacing:.13em;text-transform:uppercase;color:var(--ink2);margin-bottom:12px">Навчальне речення</div>
+    <div class="presets" id="trainPresets">
+      <button type="button" data-t="кіт сидить на вікні і дивиться на пташку">кіт сидить на вікні… (з пасткою)</button>
+      <button type="button" data-t="модель вчиться передбачати наступне слово">модель вчиться…</button>
+    </div>
+    <div class="inrow" style="margin-bottom:4px">
+      <input id="trainText" type="text" maxlength="90" autocomplete="off" spellcheck="false" aria-label="Власне навчальне речення" placeholder="або введіть своє коротке речення…">
+      <button class="btn ghost" id="trainSet">Задати</button>
+    </div>
+    <div id="trainSent"></div>
+    <div class="tr-grid">
+      <div>
+        <div id="trainCtx"></div>
+        <div class="bhead"><span>кандидат</span><span class="hl">логіт</span><span>softmax → імовірність</span><span></span></div>
+        <div id="trainBars"></div>
+      </div>
+      <div>
+        <div class="losslbl">Помилка (loss) <span class="mono">−log p(правильного)</span></div>
+        <canvas id="lossChart" aria-label="Графік падіння помилки під час навчання"></canvas>
+        <div id="trStats">
+          <span>кроків: <span class="v" id="trStepN">0</span></span>
+          <span>поточна помилка: <span class="v" id="trLossN">—</span></span>
+        </div>
+      </div>
+    </div>
+    <div class="trctrl">
+      <button class="btn" id="trStep">▶ Один крок навчання</button>
+      <button class="btn ghost" id="trEpoch">⏩ Епоха (все речення)</button>
+      <button class="btn ghost" id="trMany">🚀 +100 кроків</button>
+      <button class="btn ghost" id="trReset">⟲ Скинути ваги</button>
+      <div class="ctrl">
+        <label for="trLr">Швидкість навчання: <span class="val" id="trLrV">0.5</span></label>
+        <input type="range" id="trLr" min="0.1" max="2" step="0.1" value="0.5">
+      </div>
+    </div>
+    <div class="trctrl" style="margin-top:12px">
+      <button class="btn amber" id="trGen">✍ Перевірити, що вивчила</button>
+    </div>
+    <div id="trGenOut">
+      <div class="cap">до навчання (нульові ваги)</div>
+      <div class="genline before" id="trGenBefore"></div>
+      <div class="cap" style="margin-top:10px">після ваших кроків навчання</div>
+      <div class="genline after" id="trGenAfter"></div>
+    </div>
+    <p class="trhint" id="trHint">Це <b>справжній градієнтний спуск</b>, не імітація: логіт кожного слова зсувається на −lr·(p−ціль) — точний градієнт крос-ентропії, та сама формула, що й у GPT. Зверніть увагу на пастку в першому реченні: «на» зустрічається двічі з різними продовженнями («вікні», «пташку»), тому помилка на цих кроках ніколи не впаде до нуля — модель чесно вивчить розподіл 50/50. А якщо викрутити швидкість навчання на 2.0 — ваги почнуть перестрибувати ціль.</p>
+  </div>
+  <p style="margin-top:18px">Кожна помилка ледь-ледь зсуває числа в бік правильної відповіді. У справжній моделі так само навчаються і вектори слів, і ваги уваги — після трильйонів кроків «кіт» сам опиняється поруч із «муркоче». Уся поведінка моделі — побічний ефект однієї гри у вгадування наступного слова.</p>
 </section>
 
 <footer>Навчальна симуляція. Числа згенеровано для наочності — але кожен крок відповідає реальному конвеєру трансформерної мовної моделі.</footer>
@@ -1203,6 +1273,148 @@ async function autoRun(){
   $("#autoBtn").textContent="▶ Автогенерація до крапки";
 }
 
+/* ---------- training simulator ---------- */
+const START="⟨початок⟩";
+const TR_DISTRACT=["хмара","код","море","стіл"];
+const TR={vocab:[],pairs:[],L:{},step:0,pos:0,losses:[],lr:.5,lastCtx:null};
+
+function trSoftmax(ctx){
+  const l=TR.L[ctx];
+  const m=Math.max(...TR.vocab.map(v=>l[v]));
+  const ex={};let s=0;
+  TR.vocab.forEach(v=>{ex[v]=Math.exp(l[v]-m);s+=ex[v];});
+  const p={};TR.vocab.forEach(v=>p[v]=ex[v]/s);
+  return p;
+}
+
+function trInit(text){
+  const words=splitUnits(text.toLowerCase()).filter(u=>!/^[.,!?—:;…]$/.test(u)).slice(0,12);
+  if(words.length<2)return false;
+  const vocab=[...new Set([...words,"."])];
+  for(const d of TR_DISTRACT){if(vocab.length>=10)break;if(!vocab.includes(d))vocab.push(d);}
+  TR.vocab=vocab;
+  TR.pairs=[];
+  TR.pairs.push([START,words[0]]);
+  for(let i=0;i<words.length-1;i++)TR.pairs.push([words[i],words[i+1]]);
+  TR.pairs.push([words[words.length-1],"."]);
+  TR.L={};
+  for(const [c] of TR.pairs)if(!TR.L[c]){TR.L[c]={};TR.vocab.forEach(v=>TR.L[c][v]=0);}
+  TR.step=0;TR.pos=0;TR.losses=[];TR.lastCtx=TR.pairs[0][0];
+  $("#trGenOut").style.display="none";
+  trRenderSent();trRenderBars(TR.pairs[0][0],TR.pairs[0][1],null);trRenderChart();trRenderStats(null);
+  return true;
+}
+
+function trRenderSent(){
+  const box=$("#trainSent");box.innerHTML="";
+  const [c,t]=TR.pairs[TR.pos];
+  const mk=(txt,cls)=>{const s=document.createElement("span");s.className="tok sm "+(cls||"");s.style.animation="none";s.innerHTML=`<span>${esc(txt)}</span>`;return s;};
+  box.appendChild(mk(START,c===START?"ctx":""));
+  const words=TR.pairs.slice(1).map(p=>p[0]);
+  words.forEach((w,i)=>{
+    // token i is context when pos===i+1; target when pairs[pos][1]===w at position pos===i
+    let cls="";
+    if(TR.pos===i+1)cls="ctx";
+    else if(TR.pos===i)cls="tgt";
+    box.appendChild(mk(w,cls));
+  });
+  box.appendChild(mk(".",TR.pos===TR.pairs.length-1?"tgt":""));
+}
+
+function trRenderBars(ctx,target,justLoss){
+  const p=trSoftmax(ctx);
+  $("#trainCtx").innerHTML=`Контекст: <b>«${esc(ctx)}»</b> → правильна відповідь: <b>«${esc(target)}»</b>`+
+    (justLoss!=null?` · помилка <span class="lossv">${justLoss.toFixed(2)}</span>`:"");
+  const box=$("#trainBars");box.innerHTML="";
+  TR.vocab.forEach(v=>{
+    const row=document.createElement("div");
+    row.className="brow"+(v===target?" tgt":"");
+    row.title=v===target?"правильна відповідь із навчального тексту":"";
+    row.innerHTML=`<span class="bw">${esc(v)}${v===target?" ✓":""}</span><span class="bl">${TR.L[ctx][v].toFixed(2)}</span><span class="btr"><span class="bfill"></span></span><span class="bp">${(p[v]*100).toFixed(1)} %</span>`;
+    box.appendChild(row);
+    requestAnimationFrame(()=>{row.querySelector(".bfill").style.width=(p[v]*100)+"%";});
+  });
+}
+
+function trStepOnce(){
+  const [c,t]=TR.pairs[TR.pos];
+  const p=trSoftmax(c);
+  const loss=-Math.log(p[t]);
+  TR.losses.push(loss);
+  TR.vocab.forEach(v=>{TR.L[c][v]-=TR.lr*(p[v]-(v===t?1:0));});
+  TR.step++;TR.lastCtx=c;
+  const shown=[c,t,loss];
+  TR.pos=(TR.pos+1)%TR.pairs.length;
+  return shown;
+}
+
+function trRenderStats(loss){
+  $("#trStepN").textContent=TR.step;
+  $("#trLossN").textContent=loss!=null?loss.toFixed(3):"—";
+}
+
+function trRenderChart(){
+  const canvas=$("#lossChart");
+  const dpr=Math.min(devicePixelRatio,2);
+  const W=canvas.clientWidth||canvas.parentElement.clientWidth,H=160;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  const x=canvas.getContext("2d");x.scale(dpr,dpr);
+  const accent=cssColor("--accent"),line=cssColor("--line"),ink3=cssColor("--ink3");
+  const padL=30,padB=18,padT=8,padR=8;
+  const maxY=Math.max(2.5,...TR.losses);
+  const n=TR.losses.length;
+  x.font="10px 'JetBrains Mono', monospace";x.fillStyle=ink3;x.strokeStyle=line;x.lineWidth=1;
+  for(let g=0;g<=Math.floor(maxY);g++){
+    const y=padT+(H-padT-padB)*(1-g/maxY);
+    x.beginPath();x.moveTo(padL,y);x.lineTo(W-padR,y);x.stroke();
+    x.fillText(String(g),8,y+3);
+  }
+  if(!n){x.fillText("натисніть «Один крок навчання»",padL+10,H/2);return;}
+  const X=i=>padL+(W-padL-padR)*(n===1?1:i/(n-1));
+  const Y=v=>padT+(H-padT-padB)*(1-v/maxY);
+  x.beginPath();
+  TR.losses.forEach((v,i)=>{i?x.lineTo(X(i),Y(v)):x.moveTo(X(i),Y(v));});
+  x.strokeStyle=accent;x.lineWidth=2;x.lineJoin="round";x.stroke();
+  const lv=TR.losses[n-1];
+  x.beginPath();x.arc(X(n-1),Y(lv),3.5,0,7);x.fillStyle=accent;x.fill();
+  x.fillStyle=ink3;x.fillText(n+" кроків",W-padR-58,H-4);
+}
+
+let trBusy=false;
+async function trDoSteps(k,animate){
+  if(trBusy||!TR.pairs.length)return;
+  trBusy=true;
+  let shown=null;
+  for(let i=0;i<k;i++){
+    shown=trStepOnce();
+    if(animate){
+      trRenderSent();trRenderBars(shown[0],shown[1],shown[2]);trRenderChart();trRenderStats(shown[2]);
+      await sleep(k>1?260:0);
+    }
+  }
+  if(!animate){
+    trRenderSent();trRenderBars(shown[0],shown[1],shown[2]);trRenderChart();trRenderStats(shown[2]);
+  }
+  trBusy=false;
+}
+
+function trSample(untrained){
+  let ctx=START,out=[],guard=0;
+  while(guard++<14){
+    let word;
+    if(untrained||!TR.L[ctx]){
+      word=TR.vocab[Math.floor(Math.random()*TR.vocab.length)];
+    }else{
+      const p=trSoftmax(ctx);const r=Math.random();let acc=0;
+      for(const v of TR.vocab){acc+=p[v];if(r<=acc){word=v;break;}}
+      word=word||TR.vocab[0];
+    }
+    if(word===".")  {out.push(".");break;}
+    out.push(word);ctx=word;
+  }
+  return out.join(" ").replace(/\s+\./,".");
+}
+
 /* ---------- wiring ---------- */
 $("#feedBtn").addEventListener("click",feed);
 $("#prompt").addEventListener("keydown",e=>{if(e.key==="Enter")feed();});
@@ -1237,7 +1449,33 @@ $$("#topkSeg button").forEach(b=>b.addEventListener("click",()=>{
   if(!ST[4].classList.contains("locked"))renderPrediction();
 }));
 
+/* training wiring */
+$$("#trainPresets button").forEach(b=>b.addEventListener("click",()=>{
+  $("#trainText").value=b.dataset.t;
+  $$("#trainPresets button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  trInit(b.dataset.t);
+}));
+$("#trainSet").addEventListener("click",()=>{
+  const t=$("#trainText").value.trim();
+  if(t&&!trInit(t))$("#trainCtx").innerHTML="Потрібно щонайменше два слова.";
+  $$("#trainPresets button").forEach(x=>x.setAttribute("aria-pressed","false"));
+});
+$("#trainText").addEventListener("keydown",e=>{if(e.key==="Enter")$("#trainSet").click();});
+$("#trStep").addEventListener("click",()=>trDoSteps(1,true));
+$("#trEpoch").addEventListener("click",()=>trDoSteps(TR.pairs.length,true));
+$("#trMany").addEventListener("click",()=>trDoSteps(100,false));
+$("#trReset").addEventListener("click",()=>trInit($("#trainText").value.trim()||$$("#trainPresets button")[0].dataset.t));
+$("#trLr").addEventListener("input",e=>{TR.lr=+e.target.value;$("#trLrV").textContent=TR.lr.toFixed(1);});
+$("#trGen").addEventListener("click",()=>{
+  if(!TR.pairs.length)return;
+  $("#trGenOut").style.display="block";
+  $("#trGenBefore").textContent=trSample(true);
+  $("#trGenAfter").textContent=TR.step?trSample(false):"(модель ще не навчалась — натисніть «Один крок навчання»)";
+});
+
 renderContext();
+$("#trainText").value=$$("#trainPresets button")[0].dataset.t;
+trInit($("#trainText").value);
 </script>
 
 </body>
