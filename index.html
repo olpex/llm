@@ -219,6 +219,13 @@ button.tok:hover{border-color:var(--accent)}
 #spaceInfo .sv{font-family:"JetBrains Mono",monospace;color:var(--accent)}
 .spacehint{font-size:13px;color:var(--ink3);margin:10px 0 0}
 
+/* dimension scale strip */
+.dimscale{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+.dimcap{font-size:13.5px;color:var(--ink2)}
+.dimcap b,.dimcap2 b{color:var(--ink)}
+#dimStrip{display:block;width:100%;height:56px;margin:10px 0 6px}
+.dimcap2{font-size:12.5px;color:var(--amber)}
+
 /* attention arcs */
 #arcCanvas{display:block;width:100%;height:150px;margin-bottom:16px}
 .arclbl{font-size:13px;color:var(--ink2);margin:0 0 6px}
@@ -406,6 +413,11 @@ footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var
         <div class="veckey"><span class="kp"><i></i>додатне значення</span><span class="kn"><i></i>від'ємне значення</span></div>
         <div id="simBox"></div>
         <p class="hint">Натисніть на токен, щоб побачити його вектор. Оберіть два — і модель порахує їхню косинусну схожість. Порівняйте, скажімо, «Кіт» і «муркоче» проти «Кіт» і «на».</p>
+        <div class="dimscale">
+          <div class="dimcap">Відчуйте масштаб: у GPT-4 вектор кожного токена має <b>12 288 вимірів</b>. Кожна риска нижче — один вимір:</div>
+          <canvas id="dimStrip" aria-label="Порівняння 16 вимірів симуляції з 12288 вимірами GPT-4"></canvas>
+          <div class="dimcap2">▐ жовта позначка ліворуч — це <b>всі наші 16 вимірів</b> у масштабі GPT-4 (0,13 % ширини)</div>
+        </div>
       </div>
       <p style="margin-top:16px"><button class="btn" id="act3">Крок 3: Обчислити увагу →</button></p>
     </div>
@@ -417,15 +429,26 @@ footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var
     <span class="st-num">3</span>
     <p class="st-eyebrow">Крок 3 · Механізм уваги</p>
     <h2>Токени «дивляться» одне на одного</h2>
-    <p class="st-desc">Серце трансформера. Кожен токен розподіляє 100&nbsp;% своєї <b>уваги</b> між собою та попередніми токенами (у майбутнє зазирати не можна — пунктирні клітинки). Що темніша клітинка, то важливіший той токен для розуміння цього. Так «сидить» дізнається, <i>хто</i> сидить.</p>
+    <p class="st-desc">Серце трансформера. Кожен токен розподіляє 100&nbsp;% своєї <b>уваги</b> між собою та попередніми токенами (у майбутнє зазирати не можна — пунктирні клітинки). Але увага не одна: у моделі паралельно працюють десятки <b>«голів»</b>, і кожна шукає свій тип зв'язку. Перемикайте голови нижче й дивіться, як змінюється вся карта.</p>
     <div class="st-body" hidden>
       <div class="panel">
+        <div class="ctrls" style="margin-bottom:6px">
+          <div class="ctrl">
+            <label id="headLbl">Голова уваги — кожна шукає своє</label>
+            <div class="seg" role="group" aria-labelledby="headLbl" id="headSeg">
+              <button type="button" data-h="sem" aria-pressed="true">зміст</button>
+              <button type="button" data-h="syn">сусіднє слово</button>
+              <button type="button" data-h="first">початок речення</button>
+            </div>
+          </div>
+        </div>
+        <p class="arclbl" id="headDesc"></p>
         <p class="arclbl" id="arcLbl"></p>
         <canvas id="arcCanvas" aria-label="Дуги уваги від останнього токена до попередніх"></canvas>
         <div id="attnScroll"><div id="attnGrid" role="img" aria-label="Теплова карта ваг уваги"></div></div>
         <div id="attnReadout">Наведіть курсор на клітинку, щоб прочитати її значення.</div>
       </div>
-      <div class="factoid">У справжній моделі таких карт — сотні одночасно (<b>96 шарів × 96 «голів»</b> у GPT-3): одна голова стежить за граматикою, інша — за іменами, ще інша — за комами.</div>
+      <div class="factoid">Ви щойно погортали <b>3 голови в 1 шарі</b>. У GPT-3 — <b>96 шарів × 96 голів = 9 216</b> таких карт <i>одночасно</i>, і виходи всіх голів складаються в нове представлення кожного токена. Голови-«якорі початку» і голови-«сусіднього слова» — не вигадка: їх реально знаходять усередині великих моделей.</div>
       <p style="margin-top:16px"><button class="btn" id="act4">Крок 4: Порахувати ймовірності →</button></p>
     </div>
     <p class="lockmsg">Відкриється після ембедінгів.</p>
@@ -455,6 +478,7 @@ footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var
             </div>
           </div>
         </div>
+        <p class="hint" style="margin:0 0 12px">Справжня модель на цьому кроці виставляє бал <b>кожному зі ~100 000 токенів словника</b> — тут показано вісім зі спрощеного словника, але формула та сама.</p>
         <div class="bhead"><span>кандидат</span><span class="hl">логіт</span><span>softmax → імовірність</span><span></span></div>
         <div id="bars"></div>
         <p class="hint">Температура 0.2 — модель майже завжди бере фаворита (нудно, зате надійно). Температура 2.0 — шанси вирівнюються (креативно, але можлива нісенітниця).</p>
@@ -498,7 +522,7 @@ footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var
     <tbody>
       <tr><td>Словник</td><td class="mono">≈200 слів</td><td class="mono">50–150 тис. токенів</td></tr>
       <tr><td>Розмір вектора</td><td class="mono">16 чисел</td><td class="mono">4 096–12 288 чисел</td></tr>
-      <tr><td>Шарів уваги</td><td class="mono">1</td><td class="mono">32–100+</td></tr>
+      <tr><td>Шарів × голів уваги</td><td class="mono">1 × 3</td><td class="mono">96 × 96 = 9 216 карт</td></tr>
       <tr><td>Параметрів</td><td class="mono">жменька правил</td><td class="mono">10⁹–10¹²</td></tr>
       <tr><td>Принцип роботи</td><td colspan="2">однаковий: контекст → увага → ймовірності → жереб → новий токен</td></tr>
     </tbody>
@@ -788,13 +812,19 @@ function embed(word){
 function cosine(a,b){let s=0;for(let i=0;i<DIMS;i++)s+=a[i]*b[i];return s;}
 
 /* ---------- attention ---------- */
-function attentionMatrix(toks){
+function attentionMatrix(toks,head){
+  head=head||S.head;
   const E=toks.map(t=>embed(t.text));
   return toks.map((_,i)=>{
     const sc=[];
     for(let j=0;j<=i;j++){
+      const d=i-j;
       const sameWord=(toks[i].word===toks[j].word&&i!==j)?1.3:0;
-      sc.push(2.4*cosine(E[i],E[j])+.8*Math.exp(-(i-j)/3.5)+(j===i?-.85:0)+sameWord);
+      let s;
+      if(head==="syn")s=3.4*Math.exp(-Math.abs(d-1)/.9)+sameWord*.4;
+      else if(head==="first")s=(j===0?2.6:j===1?.6:0)+(d===0?.5:0)-j*.03;
+      else s=2.4*cosine(E[i],E[j])+.8*Math.exp(-d/3.5)+(d===0?-.85:0)+sameWord;
+      sc.push(s);
     }
     const m=Math.max(...sc);
     const ex=sc.map(s=>Math.exp(s-m));
@@ -829,7 +859,7 @@ function samplePick(dist){
 }
 
 /* ---------- state ---------- */
-const S={units:[],tokens:[],T:1,K:5,steps:0,busy:false,finished:false,selA:null,selB:null};
+const S={units:[],tokens:[],T:1,K:5,steps:0,busy:false,finished:false,selA:null,selB:null,head:"sem"};
 
 /* ---------- rendering ---------- */
 function chipEl(t,cls){
@@ -1118,9 +1148,48 @@ function buildSpace(){
 
 /* rebuild on theme change */
 const darkMq=matchMedia("(prefers-color-scheme: dark)");
-function onTheme(){if(SP&&!ST[2].classList.contains("locked"))buildSpace();if(!ST[3].classList.contains("locked"))renderArcs();}
+function onTheme(){
+  if(SP&&!ST[2].classList.contains("locked")){buildSpace();renderDimStrip();}
+  if(!ST[3].classList.contains("locked"))renderArcs();
+  if(TR.pairs.length)trRenderChart();
+}
 darkMq.addEventListener?.("change",onTheme);
 new MutationObserver(onTheme).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+
+/* ---------- dimension scale strip ---------- */
+function renderDimStrip(){
+  const c=$("#dimStrip");if(!c)return;
+  const dpr=Math.min(devicePixelRatio,2);
+  const W=c.clientWidth||c.parentElement.clientWidth,H=56;
+  if(!W)return;
+  c.width=W*dpr;c.height=H*dpr;
+  const x=c.getContext("2d");x.scale(dpr,dpr);
+  const accent=cssColor("--accent"),amber=cssColor("--amber");
+  const r=rng(4242);
+  x.strokeStyle=accent;x.globalAlpha=.45;x.lineWidth=1;
+  for(let px=0;px<W;px++){
+    const h=6+r()*(H-22);
+    x.beginPath();x.moveTo(px+.5,H-12);x.lineTo(px+.5,H-12-h);x.stroke();
+  }
+  x.globalAlpha=1;
+  const w16=Math.max(3,W*16/12288);
+  x.fillStyle=amber;
+  x.fillRect(0,0,w16,H-12);
+  x.fillRect(0,H-8,w16,5);
+}
+
+/* ---------- attention heads ---------- */
+const HEAD_DESC={
+  sem:"Голова «зміст» шукає токени зі схожим значенням — так «муркоче» знаходить свого «кота» через пів речення.",
+  syn:"Голова «сусіднє слово» майже завжди дивиться на попередній токен — на таких головах тримаються узгодження й порядок слів.",
+  first:"Голова «початок речення» чіпляється за перший токен — «якір теми». Такі голови справді знаходять усередині великих моделей.",
+};
+function setHead(h){
+  S.head=h;
+  $$("#headSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.h===h));
+  $("#headDesc").textContent=HEAD_DESC[h];
+  renderAttention();renderArcs();
+}
 
 /* ---------- attention arcs ---------- */
 function renderArcs(){
@@ -1423,14 +1492,15 @@ $$("#presets button").forEach(b=>b.addEventListener("click",()=>{
   $$("#presets button").forEach(x=>x.setAttribute("aria-pressed",x===b));
   feed();
 }));
-$("#act2").addEventListener("click",openStage(2,()=>{buildSpace();renderEmbChips();
+$("#act2").addEventListener("click",openStage(2,()=>{buildSpace();renderDimStrip();renderEmbChips();
   // preselect first meaningful pair
   const words=[...new Set(S.tokens.map(t=>t.text))];
   S.selA=words[0]||null;S.selB=words.find(w=>w!==S.selA&&groupOf(w))||words[1]||null;
   $$("#embChips .tok").forEach(el=>{const w=el.querySelector("span").textContent;el.classList.toggle("pick",w===S.selA||w===S.selB);});
   renderVecs();
 }));
-$("#act3").addEventListener("click",openStage(3,()=>{renderAttention();renderArcs();}));
+$("#act3").addEventListener("click",openStage(3,()=>{setHead(S.head);}));
+$$("#headSeg button").forEach(b=>b.addEventListener("click",()=>setHead(b.dataset.h)));
 $("#act4").addEventListener("click",openStage(4,renderPrediction));
 $("#act5").addEventListener("click",openStage(5,()=>{}));
 $("#sampleBtn").addEventListener("click",()=>sampleOne(true));
