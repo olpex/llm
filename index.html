@@ -211,6 +211,10 @@ button.tok:hover{border-color:var(--accent)}
 .factoid details.more summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
 .factoid details.more p{margin:9px 0 0;color:var(--ink2)}
 .factoid details.more p i{color:var(--ink)}
+.caveat{margin-top:18px;padding:14px 16px;border:1.5px solid var(--amber);border-radius:8px;background:var(--amber-soft)}
+.caveat-lbl{font:700 11px/1 "IBM Plex Sans",sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);margin-bottom:8px}
+.caveat p{margin:0;color:var(--ink2);font-size:14.5px}
+.caveat p b{color:var(--ink)}
 
 /* tokens flow */
 #tokRow{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
@@ -238,7 +242,16 @@ button.tok:hover{border-color:var(--accent)}
 .veckey .kn i{background:var(--amber)}
 
 /* 3d semantic space */
+.spacetabs{display:flex;gap:8px;margin-bottom:12px}
+.spacetabs button{border:1px solid var(--line);background:var(--surface2);border-radius:999px;padding:7px 14px;font-size:13.5px;color:var(--ink2)}
+.spacetabs button[aria-selected="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
 #spaceWrap{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--bg);margin-bottom:18px}
+#spaceListWrap{border:1px solid var(--line);border-radius:8px;padding:16px;background:var(--bg);margin-bottom:18px}
+#spaceList{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+#spaceList li{padding:9px 12px;background:var(--surface2);border-radius:8px;font-size:14px}
+#spaceList .slw{font-family:"JetBrains Mono",monospace;font-weight:600;color:var(--ink)}
+#spaceList .sln{color:var(--ink2)}
+#spaceList .sln .sv{font-family:"JetBrains Mono",monospace;color:var(--accent)}
 #space3d{display:block;width:100%;height:400px;cursor:grab;touch-action:none}
 #space3d.grabbing{cursor:grabbing}
 #spaceLegend{display:flex;flex-wrap:wrap;gap:6px 16px;padding:10px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--ink2)}
@@ -391,6 +404,16 @@ input[type=range]{width:190px;accent-color:var(--accent)}
 .readlist .rs{font-size:11.5px;color:var(--ink3);font-family:"JetBrains Mono",monospace;margin-top:4px}
 
 footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var(--line);padding-top:20px}
+
+@media print{
+  #ctxbar,#inputCard,.genbtns,.presets,.trctrl,.spacetabs,#space3d,#globalReset,
+  .greedy,.syschk,#sampleBtn,#autoBtn,#resetBtn,#continueBtn,button{display:none!important}
+  .station .st-body{display:block!important}
+  .station{page-break-inside:avoid}
+  .lockmsg{display:none!important}
+  body{background:#fff;color:#111}
+  .panel,.card{box-shadow:none;border:1px solid #ccc}
+}
 </style>
 </head>
 <body>
@@ -456,12 +479,20 @@ footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var
     <p class="st-desc">Номер токена — це лише індекс. Щоб зі змістом можна було рахувати, кожному токену відповідає <b>вектор</b> — точка у багатовимірному «просторі значень» (тут 16 вимірів, у GPT-подібних моделях — тисячі). Нижче — тривимірна проєкція цього простору: слова з одного смислового поля збиваються у кластери.</p>
     <div class="st-body" hidden>
       <div class="panel">
+        <div class="spacetabs" role="tablist" aria-label="Режим перегляду простору значень">
+          <button type="button" id="space3dTab" role="tab" aria-selected="true">🌐 3D-простір</button>
+          <button type="button" id="spaceListTab" role="tab" aria-selected="false">📋 Список (зручно на мобільному)</button>
+        </div>
         <div id="spaceWrap">
-          <canvas id="space3d" aria-label="Тривимірна проєкція простору значень слів"></canvas>
+          <canvas id="space3d" aria-hidden="true"></canvas>
           <div id="spaceLegend"></div>
         </div>
         <div id="spaceInfo">Обертайте простір мишею, наближайте коліщатком. Натисніть на слово — побачите його найближчих сусідів.</div>
-        <p class="spacehint">Підписи слів контексту показані завжди; інші слова підписуються по наведенню курсора чи тапу — так текст не зливається в кашу. Зверніть увагу: «кіт» живе поруч із «муркоче», а «технологія» — в іншому кінці простору.</p>
+        <p class="spacehint" id="space3dHint">Підписи слів контексту показані завжди; інші слова підписуються по наведенню курсора чи тапу — так текст не зливається в кашу. Зверніть увагу: «кіт» живе поруч із «муркоче», а «технологія» — в іншому кінці простору.</p>
+        <div id="spaceListWrap" hidden>
+          <ol id="spaceList"></ol>
+          <p class="spacehint">Той самий простір значень текстом: для кожного слова контексту — три найближчі сусіди за косинусною схожістю. Зручніше за 3D на вузькому екрані.</p>
+        </div>
       </div>
       <div class="panel" style="margin-top:16px">
         <div id="embChips"></div>
@@ -514,7 +545,7 @@ footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var
       <div class="factoid">Ви щойно погортали <b>3 голови в 1 шарі</b>. У GPT-3 — <b>96 шарів × 96 голів = 9 216</b> таких карт <i>одночасно</i>.
         <details class="more">
           <summary>Що ще відбувається всередині шару, крім уваги? →</summary>
-          <p>Виходи всіх голів складаються в нове представлення кожного токена. Голови-«якорі початку» і голови-«сусіднього слова» — не вигадка: їх реально знаходять усередині великих моделей. І ще: трансформер — це не лише увага. Після кожного шару уваги стоїть <b>FFN-блок</b> (маленька нейромережа, яку кожен токен проходить окремо, без огляду на сусідів) — саме в цих блоках ~⅔ всіх параметрів моделі й, за сучасними уявленнями, більшість її «знань про світ». Спрощено: <i>увага</i> зводить токени докупи й обмінюється контекстом, а <i>FFN</i> «обмірковує» кожен токен наодинці і дістає факти з пам'яті ваг. Шар = увага → FFN, і так 96 разів поспіль.</p>
+          <p>Виходи всіх голів складаються в нове представлення кожного токена. Голови-«якорі початку» і голови-«сусіднього слова» — не вигадка: їх реально знаходять усередині великих моделей. І ще: трансформер — це не лише увага. Після кожного шару уваги стоїть <b>FFN-блок</b> (маленька нейромережа, яку кожен токен проходить окремо, без огляду на сусідів) — саме в цих блоках ~⅔ всіх параметрів моделі й, за сучасними уявленнями, більшість її «знань про світ». Дослідники (Geva et al., 2020) описують FFN як велику таблицю «ключ → значення»: перший шар FFN перевіряє, чи збігається вектор токена з одним із мільйонів завчених «ключів»-патернів, а другий — якщо збіг є, додає відповідне «значення» (факт, асоціацію) до вектора. Спрощено: <i>увага</i> зводить токени докупи й обмінюється контекстом, а <i>FFN</i> «пригадує» факти про кожен токен наодинці. Шар = увага → FFN, і так 96 разів поспіль. Перед і після обох кроків стоїть ще одна дрібниця — <b>нормалізація шару (LayerNorm)</b>: вона перераховує вектор так, щоб його середнє й розкид лишались у розумних межах. Без неї числа в глибокій мережі за сотню кроків «вибухнули» б або звелися до нуля.</p>
         </details>
       </div>
       <p style="margin-top:16px"><button class="btn" id="act4">Крок 4: Порахувати ймовірності →</button></p>
@@ -545,8 +576,18 @@ footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var
               <button type="button" data-k="8">8</button>
             </div>
           </div>
+          <div class="ctrl">
+            <label id="toppLbl"><span class="term" data-term="top-p" tabindex="0">Top-p</span> (нуклеус-семплінг)</label>
+            <div class="seg" role="group" aria-labelledby="toppLbl" id="toppSeg">
+              <button type="button" data-p="" aria-pressed="true">вимк.</button>
+              <button type="button" data-p="0.9">0.9</button>
+              <button type="button" data-p="0.7">0.7</button>
+              <button type="button" data-p="0.5">0.5</button>
+            </div>
+          </div>
         </div>
-        <p class="hint" style="margin:0 0 12px">Справжня модель на цьому кроці виставляє бал <b>кожному зі ~100 000 токенів словника</b> — тут показано вісім зі спрощеного словника, але формула та сама.</p>
+        <p class="hint" id="nucleusNote" style="margin:0 0 8px;min-height:16px"></p>
+        <p class="hint" style="margin:0 0 12px">Справжня модель на цьому кроці виставляє бал <b>кожному зі ~100 000 токенів словника</b> — тут показано вісім зі спрощеного словника, але формула та сама. ChatGPT і Claude за замовчуванням семплять саме через <b>top-p</b>, а не top-k: замість фіксованої кількості кандидатів top-p бере стільки найімовірніших слів, скільки потрібно, щоб їхня сумарна ймовірність досягла порогу p — тому «ядро» звужується чи розширюється залежно від того, наскільки модель впевнена.</p>
         <div class="bhead"><span>кандидат</span><span class="hl">логіт</span><span>softmax → імовірність</span><span></span></div>
         <div id="bars"></div>
         <p class="hint">Температура 0.2 — модель майже завжди бере фаворита (нудно, зате надійно). Температура 2.0 — шанси вирівнюються (креативно, але можлива нісенітниця).</p>
@@ -565,6 +606,7 @@ footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var
     <div class="st-body" hidden>
       <div class="panel">
         <label class="greedy"><input type="checkbox" id="greedyChk"> <span><b>жадібний режим</b> — без жереба, завжди найімовірніше слово (як temperature → 0). Увімкніть і перезапустіть кілька разів: результат стане однаковим щоразу</span></label>
+        <p class="hint" style="margin:-4px 0 16px">Є і третій шлях, посередині між «жадібним» і випадковим семплінгом — <b>beam search</b>: модель тримає одразу кілька (наприклад, 4) найкращих варіантів продовження речення паралельно і в кінці обирає те, що загалом набрало найвищу сумарну ймовірність, а не тільки найкраще на кожному окремому кроці. Дорожче для обчислень, зате не застрягає в локально-найкращому, але загалом гіршому виборі.</p>
         <div class="genbtns">
           <button class="btn amber" id="sampleBtn">🎲 Витягнути один токен</button>
           <button class="btn ghost" id="autoBtn">▶ Автогенерація до крапки</button>
@@ -606,6 +648,7 @@ footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var
       <tr><td>Принцип роботи</td><td colspan="2">однаковий: контекст → увага → ймовірності → жереб → новий токен</td></tr>
     </tbody>
   </table></div>
+  <p class="hint" style="margin-top:10px">Тут — лише текст. Сучасні моделі (GPT-4o, Claude, Gemini) так само токенізують і зображення, і звук — картинку ріжуть на квадратні шматки-«патчі», звук — на короткі відрізки хвилі, і кожен шматок так само стає вектором і йде в той самий конвеєр «увага → FFN → ймовірності». Формат даних на вході інший, механіка всередині — та сама.</p>
 </section>
 
 <section class="train" id="trainSec">
@@ -666,7 +709,10 @@ footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var
     </div>
     <p class="trhint" id="trHint">Це <b>справжній градієнтний спуск</b>, не імітація: логіт кожного слова зсувається на −lr·(p−ціль) — точний градієнт крос-ентропії, та сама формула, що й у GPT. Зверніть увагу на пастку в першому реченні: «на» зустрічається двічі з різними продовженнями («вікні», «пташку»), тому помилка на цих кроках ніколи не впаде до нуля — модель чесно вивчить розподіл 50/50. А якщо викрутити швидкість навчання на 2.0 — ваги почнуть перестрибувати ціль.</p>
   </div>
-  <p style="margin-top:18px">Чесне уточнення: наш тренажер оновлює лише вихідну табличку логітів. У справжній моделі той самий градієнт помилки тече назад крізь <b>усі</b> шари (це і є backpropagation) й оновлює заразом і вектори слів, і ваги уваги, і FFN-блоки — тому після трильйонів кроків «кіт» сам опиняється поруч із «муркоче». Уся поведінка моделі — побічний ефект однієї гри у вгадування наступного слова.</p>
+  <div class="caveat">
+    <div class="caveat-lbl">⚠ Межа цього тренажера</div>
+    <p>Наш тренажер оновлює <b>лише вихідну табличку логітів</b> — і це принципова спрощення, яку варто тримати в голові. У справжній моделі той самий градієнт помилки тече назад крізь <b>усі</b> шари (це і є <i>backpropagation</i>) й оновлює заразом і вектори слів, і ваги уваги, і FFN-блоки — тому після трильйонів кроків «кіт» сам опиняється поруч із «муркоче». Уся поведінка моделі — побічний ефект однієї гри у вгадування наступного слова.</p>
+  </div>
   <p style="margin-top:14px"><b>А чому тоді ChatGPT — ввічливий помічник, а не просто продовжувач тексту?</b> Після базового навчання модель додатково тюнять: спершу на прикладах гарних діалогів (SFT), потім за оцінками людей, які порівнюють відповіді (RLHF) — тим самим градієнтним спуском ваги зсувають у бік «бути корисним асистентом». Плюс перед вашим повідомленням модель завжди отримує прихований системний промпт, який задає їй роль і тон.</p>
 </section>
 
@@ -955,16 +1001,31 @@ function rawCandidates(){
   const list=LM[prev+" "+last]||LM[last]||FALLBACK;
   return list.slice(0,8);
 }
-function distribution(T,K){
+function distribution(T,K,P){
   const cands=rawCandidates();
   const logits=cands.map(([w,wt])=>Math.log(wt));
   const order=logits.map((l,i)=>i).sort((a,b)=>logits[b]-logits[a]);
-  const keep=new Set(order.slice(0,K));
+  const topkSet=new Set(order.slice(0,K));
   const m=Math.max(...logits)/T;
-  const ex=logits.map((l,i)=>keep.has(i)?Math.exp(l/T-m):0);
+  const ex=logits.map((l,i)=>topkSet.has(i)?Math.exp(l/T-m):0);
   const sum=ex.reduce((a,b)=>a+b,0);
-  return cands.map(([w,wt],i)=>({word:w,logit:logits[i],p:ex[i]/sum,kept:keep.has(i)}))
+  const probs=ex.map(e=>e/sum);
+  let keep=topkSet,nucleusN=topkSet.size;
+  if(P!=null){
+    let cum=0;const nucleus=new Set();
+    for(const idx of order){
+      if(!topkSet.has(idx))continue;
+      nucleus.add(idx);cum+=probs[idx];
+      if(cum>=P)break;
+    }
+    keep=nucleus;nucleusN=nucleus.size;
+  }
+  const ex2=logits.map((l,i)=>keep.has(i)?Math.exp(l/T-m):0);
+  const sum2=ex2.reduce((a,b)=>a+b,0);
+  const out=cands.map(([w,wt],i)=>({word:w,logit:logits[i],p:ex2[i]/sum2,kept:keep.has(i)}))
               .sort((a,b)=>b.logit-a.logit);
+  out.nucleusN=nucleusN;
+  return out;
 }
 function samplePick(dist){
   if($("#greedyChk")&&$("#greedyChk").checked)return dist.find(d=>d.kept)||dist[0];
@@ -974,7 +1035,7 @@ function samplePick(dist){
 }
 
 /* ---------- state ---------- */
-const S={units:[],tokens:[],T:1,K:5,steps:0,sentLen:0,sysCount:0,busy:false,finished:false,selA:null,selB:null,head:"sem",traced:null};
+const S={units:[],tokens:[],T:1,K:5,P:null,steps:0,sentLen:0,sysCount:0,busy:false,finished:false,selA:null,selB:null,head:"sem",traced:null};
 const CTX_LIMIT=22;
 
 /* ---------- rendering ---------- */
@@ -1110,6 +1171,24 @@ function renderVecs(){
   } else sim.style.display="none";
 }
 
+/* mobile-friendly text alternative to the 3D space */
+function renderSpaceList(){
+  const list=$("#spaceList");if(!list)return;
+  list.innerHTML="";
+  const allWords=[...new Set(Object.values(GROUPS).flat())];
+  const ctxWords=[...new Set(S.tokens.filter(t=>!t.sys).map(t=>t.word.toLowerCase()))];
+  const words=ctxWords.length?ctxWords:allWords.slice(0,5);
+  words.forEach(w=>{
+    const sims=allWords.filter(q=>q!==w)
+      .map(q=>({q,c:cosine(embed(w),embed(q))}))
+      .sort((a,b)=>b.c-a.c).slice(0,3);
+    const li=document.createElement("li");
+    li.innerHTML=`<span class="slw">«${esc(w)}»</span> — <span class="sln">найближче: `+
+      sims.map(({q,c})=>`«${esc(q)}» <span class="sv">${c.toFixed(2)}</span>`).join(" · ")+"</span>";
+    list.appendChild(li);
+  });
+}
+
 /* attention station */
 function attnTokens(){return S.tokens.slice(-10);}
 function renderAttention(){
@@ -1154,13 +1233,14 @@ function renderPrediction(){
   const known=!!(LM[((u[u.length-2]||"")+" "+(u[u.length-1]||"")).toLowerCase()]||LM[lw.toLowerCase()]);
   $("#predCtx").innerHTML=`Контекст закінчується на <span class="mono">«${esc(lw)}»</span> → топ-8 кандидатів на наступний токен (зі спрощеного словника):`+
     (known?"":`<div class="hint" style="margin-top:6px">Слова «${esc(lw)}» немає в крихітному словнику симуляції, тому модель відкочується до загальних кандидатів. У справжньої моделі «невідомих слів» не буває: токенізатор гарантовано розбере будь-який текст на відомі шматки — саме для цього існують субтокени з кроку 1.</div>`);
-  const dist=distribution(S.T,S.K);
+  const dist=distribution(S.T,S.K,S.P);
   const box=$("#bars");box.innerHTML="";
+  $("#nucleusNote").textContent=S.P!=null?`Top-p=${S.P.toFixed(1)} лишив у «ядрі» ${dist.nucleusN} з ${Math.min(S.K,dist.length)} кандидатів top-k — далі поріг кумулятивної ймовірності відсікає хвіст.`:"";
   dist.forEach((d,i)=>{
     const row=document.createElement("div");
     row.className="brow"+(d.kept?"":" cut");
     row.dataset.word=d.word;
-    row.title=d.kept?`логіт ${d.logit.toFixed(2)} → імовірність ${(d.p*100).toFixed(1)} %`:`відкинуто фільтром top-${S.K}`;
+    row.title=d.kept?`логіт ${d.logit.toFixed(2)} → імовірність ${(d.p*100).toFixed(1)} %`:(S.P!=null?`відкинуто: поза межами top-k=${S.K} або поза «ядром» top-p=${S.P}`:`відкинуто фільтром top-${S.K}`);
     row.innerHTML=`<span class="bw">${esc(d.word)}</span><span class="bl">${d.logit.toFixed(1)}</span><span class="btr"><span class="bfill"></span></span><span class="bp">${d.kept?(d.p*100).toFixed(1)+" %":"—"}</span>`;
     box.appendChild(row);
     requestAnimationFrame(()=>{row.querySelector(".bfill").style.width=(d.p*100)+"%";});
@@ -1740,13 +1820,22 @@ $$("#presets button").forEach(b=>b.addEventListener("click",()=>{
   $$("#presets button").forEach(x=>x.setAttribute("aria-pressed",x===b));
   feed();
 }));
-$("#act2").addEventListener("click",openStage(2,()=>{buildSpace();renderDimStrip();renderPosDemo();renderEmbChips();
+$("#act2").addEventListener("click",openStage(2,()=>{buildSpace();renderDimStrip();renderPosDemo();renderEmbChips();renderSpaceList();
   // preselect first meaningful pair
   const words=[...new Set(S.tokens.map(t=>t.text))];
   S.selA=words[0]||null;S.selB=words.find(w=>w!==S.selA&&groupOf(w))||words[1]||null;
   $$("#embChips .tok").forEach(el=>{const w=el.querySelector("span").textContent;el.classList.toggle("pick",w===S.selA||w===S.selB);});
   renderVecs();
 }));
+$("#space3dTab").addEventListener("click",()=>{
+  $("#space3dTab").setAttribute("aria-selected","true");$("#spaceListTab").setAttribute("aria-selected","false");
+  $("#spaceWrap").hidden=false;$("#spaceInfo").hidden=false;$("#space3dHint").hidden=false;$("#spaceListWrap").hidden=true;
+});
+$("#spaceListTab").addEventListener("click",()=>{
+  $("#space3dTab").setAttribute("aria-selected","false");$("#spaceListTab").setAttribute("aria-selected","true");
+  $("#spaceWrap").hidden=true;$("#spaceInfo").hidden=true;$("#space3dHint").hidden=true;$("#spaceListWrap").hidden=false;
+  renderSpaceList();
+});
 $("#act3").addEventListener("click",openStage(3,()=>{setHead(S.head);}));
 $$("#headSeg button").forEach(b=>b.addEventListener("click",()=>setHead(b.dataset.h)));
 $("#act4").addEventListener("click",openStage(4,renderPrediction));
@@ -1775,6 +1864,12 @@ $$("#topkSeg button").forEach(b=>b.addEventListener("click",()=>{
   if(!ST[4].classList.contains("locked"))renderPrediction();
   syncHash();
 }));
+$$("#toppSeg button").forEach(b=>b.addEventListener("click",()=>{
+  S.P=b.dataset.p?+b.dataset.p:null;
+  $$("#toppSeg button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  if(!ST[4].classList.contains("locked"))renderPrediction();
+  syncHash();
+}));
 
 $("#globalReset").addEventListener("click",resetAll);
 function traceDelegate(e){
@@ -1792,7 +1887,9 @@ $("#tokRow").addEventListener("keydown",traceDelegate);
 /* permalink: prompt + temperature + top-k in the URL hash */
 function syncHash(){
   if(!S.tokens.length)return;
-  const q=new URLSearchParams({p:$("#prompt").value.trim(),t:S.T,k:S.K});
+  const params={p:$("#prompt").value.trim(),t:S.T,k:S.K};
+  if(S.P!=null)params.tp=S.P;
+  const q=new URLSearchParams(params);
   history.replaceState(null,"","#"+q.toString());
 }
 
@@ -1826,6 +1923,7 @@ const GLOSS={
   "softmax":"<span class='gt'>Softmax</span> — функція, що перетворює набір логітів на ймовірності: піднімає кожен до e^logit і ділить на суму. На виході всі значення додатні й у сумі дають рівно 100&nbsp;%.",
   "температура":"<span class='gt'>Температура</span> ділить логіти перед softmax. Нижча за 1 — розподіл загострюється (модель сміливіша у виборі фаворита), вища — сплющується (більше різноманіття й ризику).",
   "top-k":"<span class='gt'>Top-k</span> лишає тільки k найімовірніших кандидатів, а решту обнуляє перед жеребом. Так модель не витягне зовсім вже безглузде слово з довгого хвоста.",
+  "top-p":"<span class='gt'>Top-p</span> (нуклеус-семплінг) сортує кандидатів за ймовірністю і лишає найменший набір, чия сумарна ймовірність досягає p. На відміну від top-k, розмір цього набору «дихає»: коли модель дуже впевнена — ядро малесеньке, коли вагається — ширше.",
   "косинусна схожість":"<span class='gt'>Косинусна схожість</span> — міра близькості двох векторів за кутом між ними: +1 — однаковий напрям (близькі за змістом), 0 — перпендикулярні (не пов'язані), −1 — протилежні.",
 };
 (function(){
@@ -1869,6 +1967,8 @@ trInit($("#trainText").value);
   if(t>=.2&&t<=2){S.T=Math.round(t*10)/10;$("#tempSlider").value=S.T;$("#tempVal").textContent=S.T.toFixed(1);}
   const k=parseInt(q.get("k"),10);
   if([1,3,5,8].includes(k)){S.K=k;$$("#topkSeg button").forEach(x=>x.setAttribute("aria-pressed",String(+x.dataset.k===k)));}
+  const tp=q.get("tp");
+  if([0.9,0.7,0.5].includes(+tp)){S.P=+tp;$$("#toppSeg button").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.p===tp)));}
   feed();
 })();
 </script>
