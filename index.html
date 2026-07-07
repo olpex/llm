@@ -440,7 +440,7 @@ footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var
           <div id="spaceLegend"></div>
         </div>
         <div id="spaceInfo">Обертайте простір мишею, наближайте коліщатком. Натисніть на слово — побачите його найближчих сусідів.</div>
-        <p class="spacehint">Слова з контексту збільшені. Зверніть увагу: «кіт» живе поруч із «муркоче», а «технологія» — в іншому кінці простору.</p>
+        <p class="spacehint">Підписи слів контексту показані завжди; інші слова підписуються по наведенню курсора чи тапу — так текст не зливається в кашу. Зверніть увагу: «кіт» живе поруч із «муркоче», а «технологія» — в іншому кінці простору.</p>
       </div>
       <div class="panel" style="margin-top:16px">
         <div id="embChips"></div>
@@ -1172,8 +1172,9 @@ function buildSpace(){
     hit.position.copy(mesh.position);
     const sprite=labelSprite(word,ink,false);
     sprite.position.copy(mesh.position);
+    sprite.visible=false;
     root.add(mesh);root.add(hit);root.add(sprite);
-    const p={word,group,mesh,hit,sprite,base:col};
+    const p={word,group,mesh,hit,sprite,base:col,_hl:false,_focus:false};
     pts.push(p);return p;
   }
   for(const g in GROUPS)for(const w of GROUPS[g])addWord(w,g);
@@ -1247,21 +1248,42 @@ function buildSpace(){
     const hits=ray.intersectObjects(pts.map(p=>p.hit));
     if(hits.length)select(pts.find(p=>p.hit===hits[0].object));
   }
+  function refreshVisibility(){
+    pts.forEach(p=>{
+      p.sprite.visible=p._hl||p._focus||p===hoverPt;
+      p.sprite.material.opacity=p._hl?1:.85;
+    });
+  }
   function select(p){
     lines.clear();
-    pts.forEach(q=>q.mesh.scale.setScalar(q._hl?1.5:1));
-    p.mesh.scale.setScalar(2.1);
+    pts.forEach(q=>{q._focus=false;q.mesh.scale.setScalar(q._hl?1.5:1);});
+    p.mesh.scale.setScalar(2.1);p._focus=true;
     const sims=pts.filter(q=>q!==p)
       .map(q=>({q,c:cosine(embed(p.word),embed(q.word))}))
       .sort((a,b)=>b.c-a.c).slice(0,3);
     const mat=new THREE.LineBasicMaterial({color:accent,transparent:true,opacity:.65});
     sims.forEach(({q})=>{
+      q._focus=true;
       const geo=new THREE.BufferGeometry().setFromPoints([p.mesh.position,q.mesh.position]);
       lines.add(new THREE.Line(geo,mat));
     });
+    refreshVisibility();
     $("#spaceInfo").innerHTML=`Найближчі сусіди слова <b>«${esc(p.word)}»</b>: `+
       sims.map(({q,c})=>`«${esc(q.word)}» <span class="sv">${c.toFixed(2)}</span>`).join(" · ");
   }
+
+  // hover: show a single label without touching selection/context state
+  let hoverPt=null;
+  canvas.addEventListener("pointermove",e=>{
+    if(dragging||ptrs.size)return;
+    const r=canvas.getBoundingClientRect();
+    const v=new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
+    ray.setFromCamera(v,camera);ray.far=100;
+    const hits=ray.intersectObjects(pts.map(q=>q.hit));
+    const next=hits.length?pts.find(q=>q.hit===hits[0].object):null;
+    if(next!==hoverPt){hoverPt=next;refreshVisibility();}
+  });
+  canvas.addEventListener("pointerleave",()=>{if(hoverPt){hoverPt=null;refreshVisibility();}});
 
   // context highlight
   function highlight(){
@@ -1269,10 +1291,10 @@ function buildSpace(){
     const lastGen=[...S.tokens].reverse().find(t=>t.gen);
     pts.forEach(p=>{
       p._hl=ctx.has(p.word);
-      p.mesh.scale.setScalar(p._hl?1.5:1);
+      p.mesh.scale.setScalar(p._hl?1.5:(p._focus?2.1:1));
       p.mesh.material.color.set(lastGen&&p.word===lastGen.word.toLowerCase()?amber:p.base);
-      p.sprite.material.opacity=p._hl?1:.48;
     });
+    refreshVisibility();
   }
   highlight();
 
