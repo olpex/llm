@@ -101,6 +101,12 @@ header.hero{padding:56px 0 8px}
 #ctxbar .lbl .cnt{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:0;text-transform:none}
 #ctxchips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;min-height:30px;align-items:center}
 #ctxchips .empty{color:var(--ink3);font-size:13.5px}
+.tracehint{font-size:12px;color:var(--ink3);margin-top:8px}
+.tracehint b{color:var(--accent);font-family:"JetBrains Mono",monospace;font-weight:600}
+.tok.traced{outline:2px solid var(--accent);outline-offset:1px}
+#ctxchips .tok,#tokRow .tok{cursor:pointer}
+.alab.traced{color:var(--accent);font-weight:600}
+.acell.traced-cell{box-shadow:inset 0 0 0 2px var(--accent)}
 .ctxmeter{display:flex;align-items:center;gap:7px}
 .ctxmeter .wtrack{width:64px;height:5px;background:var(--line);border-radius:3px;overflow:hidden}
 .ctxmeter .wfill{display:block;height:100%;width:0;background:var(--accent);border-radius:3px;transition:width .3s,background .3s}
@@ -199,6 +205,12 @@ button.tok:hover{border-color:var(--accent)}
   font-size:13.5px;color:var(--ink2);
 }
 .factoid b{color:var(--ink)}
+.factoid details.more{margin-top:8px}
+.factoid details.more summary{cursor:pointer;color:var(--accent);font-weight:600;list-style:none;font-size:13px}
+.factoid details.more summary::-webkit-details-marker{display:none}
+.factoid details.more summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+.factoid details.more p{margin:9px 0 0;color:var(--ink2)}
+.factoid details.more p i{color:var(--ink)}
 
 /* tokens flow */
 #tokRow{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
@@ -263,6 +275,7 @@ button.tok:hover{border-color:var(--accent)}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:86px;padding-right:6px;justify-content:flex-end
 }
 .alab.col{justify-content:center;padding:0;max-width:none;height:34px;overflow:hidden}
+.alab.syslab{border-bottom:1px dashed var(--ink3);font-style:italic;color:var(--ink3)}
 #attnReadout{margin-top:12px;min-height:44px;font-size:14px;color:var(--ink2);padding:10px 14px;background:var(--surface2);border-radius:8px}
 #attnReadout b{color:var(--ink)}
 #attnReadout .pct{font-family:"JetBrains Mono",monospace;color:var(--accent);font-weight:600}
@@ -306,6 +319,12 @@ input[type=range]{width:190px;accent-color:var(--accent)}
 .greedy{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;color:var(--ink2);margin-bottom:16px;cursor:pointer}
 .greedy input{margin-top:3px;accent-color:var(--accent)}
 .greedy b{color:var(--ink)}
+.syschk{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:var(--ink3);margin-top:12px;cursor:pointer}
+.syschk input{margin-top:2px;accent-color:var(--accent)}
+.syschk b{color:var(--ink2)}
+.tok.sys{border-style:dashed;background:var(--surface2);color:var(--ink3)}
+.tok.sys .tid{color:var(--ink3)}
+#sysAttnNote{margin-top:10px}
 #genLog{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 #genLog li{
   display:flex;gap:12px;align-items:center;flex-wrap:wrap;
@@ -389,6 +408,7 @@ footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var
   <div id="progressWrap" role="progressbar" aria-label="Прогрес проходження станцій" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0"><div id="progressBar"></div></div>
   <div class="lbl"><span>Контекст моделі — те, що вона «бачить» зараз</span><span style="display:flex;gap:12px;align-items:center"><span class="ctxmeter" id="ctxMeter" title="Вікно контексту — скільки токенів модель тримає в пам'яті одночасно"><span class="cnt" id="ctxCount">0</span><span class="wtrack"><span class="wfill" id="ctxFill"></span></span></span><button type="button" id="globalReset" class="resetbtn" title="Скинути весь прохід і почати спочатку">⟲ спочатку</button></span></div>
   <div id="ctxchips"><span class="empty">Поки порожньо. Оберіть початок речення нижче ↓</span></div>
+  <div class="tracehint" id="traceHint" style="display:none">Токен <b id="tracedLbl"></b> простежується нижче — 3D-простір і карта уваги підсвітять його. Натисніть ще раз, щоб зняти позначку.</div>
 </div>
 
 <section class="card" id="inputCard">
@@ -402,6 +422,7 @@ footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var
     <input id="prompt" type="text" value="Кіт сидить на" autocomplete="off" spellcheck="false" aria-label="Початок речення">
     <button class="btn" id="feedBtn">Подати в модель →</button>
   </div>
+  <label class="syschk"><input type="checkbox" id="sysPromptChk"> <span>додати прихований <b>системний промпт</b> — токени, які бачить модель, а ви в чаті ніколи не бачите</span></label>
 </section>
 
 <ol class="pipeline">
@@ -452,11 +473,11 @@ footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var
         <div class="dimscale">
           <div class="dimcap"><b>А як модель знає порядок слів?</b> Сама увага порядку не бачить — «кіт спить на килимку» і «килимок спить на коті» здавалися б їй однаковим набором токенів. Тому до вектора кожного токена додається <b>вектор його позиції</b>:</div>
           <div id="posDemo"></div>
-          <div class="dimcap" style="margin-top:10px">Те саме «на» на позиціях 3 і 8 отримує різні фінальні вектори — так порядок слів потрапляє всередину моделі. Синусоїдну формулу з першого трансформера в сучасних моделях замінили поворотні кодування (RoPE), але ідея та сама.</div>
+          <div class="dimcap" style="margin-top:10px">Те саме «на» на позиціях 3 і 8 отримує різні фінальні вектори — так порядок слів потрапляє всередину моделі. Це схема оригінального трансформера (GPT-2/3): позицію <b>додають</b> до вектора. Сучасні моделі (Llama, Mistral) використовують RoPE — там позицію не додають, а <b>повертають</b> вектор на кут, залежний від позиції. Механіка інша, та сама ідея: без цього кроку модель геть не бачила б порядку слів.</div>
         </div>
         <div class="dimscale">
           <div class="dimcap">Відчуйте масштаб: у GPT-3 (175 млрд параметрів) вектор кожного токена має <b>12 288 вимірів</b> — архітектуру GPT-4 не розкрито, але вона щонайменше такого масштабу. Кожна риска нижче — один вимір:</div>
-          <canvas id="dimStrip" aria-label="Порівняння 16 вимірів симуляції з 12288 вимірами GPT-3"></canvas>
+          <canvas id="dimStrip" aria-hidden="true"></canvas>
           <div class="dimcap2">▐ жовта позначка ліворуч — це <b>всі наші 16 вимірів</b> у тому самому масштабі (0,13 % ширини)</div>
         </div>
       </div>
@@ -484,12 +505,18 @@ footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var
           </div>
         </div>
         <p class="arclbl" id="headDesc"></p>
+        <div class="factoid" id="sysAttnNote" style="display:none">Пунктирні токени ліворуч — прихований системний промпт. Він так само бере участь у розподілі уваги: будь-який наступний токен може «зважати» на нього, хоча в чаті ви його не бачите.</div>
         <p class="arclbl" id="arcLbl"></p>
-        <canvas id="arcCanvas" aria-label="Дуги уваги від останнього токена до попередніх"></canvas>
+        <canvas id="arcCanvas" aria-hidden="true"></canvas>
         <div id="attnScroll"><div id="attnGrid" role="img" aria-label="Теплова карта ваг уваги"></div></div>
         <div id="attnReadout">Наведіть курсор на клітинку, щоб прочитати її значення.</div>
       </div>
-      <div class="factoid">Ви щойно погортали <b>3 голови в 1 шарі</b>. У GPT-3 — <b>96 шарів × 96 голів = 9 216</b> таких карт <i>одночасно</i>, і виходи всіх голів складаються в нове представлення кожного токена. Голови-«якорі початку» і голови-«сусіднього слова» — не вигадка: їх реально знаходять усередині великих моделей. І ще: трансформер — це не лише увага. Після кожного шару уваги стоїть <b>FFN-блок</b> (маленька нейромережа, яку кожен токен проходить окремо) — саме в цих блоках ~⅔ всіх параметрів моделі й, за сучасними уявленнями, більшість її «знань про світ».</div>
+      <div class="factoid">Ви щойно погортали <b>3 голови в 1 шарі</b>. У GPT-3 — <b>96 шарів × 96 голів = 9 216</b> таких карт <i>одночасно</i>.
+        <details class="more">
+          <summary>Що ще відбувається всередині шару, крім уваги? →</summary>
+          <p>Виходи всіх голів складаються в нове представлення кожного токена. Голови-«якорі початку» і голови-«сусіднього слова» — не вигадка: їх реально знаходять усередині великих моделей. І ще: трансформер — це не лише увага. Після кожного шару уваги стоїть <b>FFN-блок</b> (маленька нейромережа, яку кожен токен проходить окремо, без огляду на сусідів) — саме в цих блоках ~⅔ всіх параметрів моделі й, за сучасними уявленнями, більшість її «знань про світ». Спрощено: <i>увага</i> зводить токени докупи й обмінюється контекстом, а <i>FFN</i> «обмірковує» кожен токен наодинці і дістає факти з пам'яті ваг. Шар = увага → FFN, і так 96 разів поспіль.</p>
+        </details>
+      </div>
       <p style="margin-top:16px"><button class="btn" id="act4">Крок 4: Порахувати ймовірності →</button></p>
     </div>
     <p class="lockmsg">Відкриється після ембедінгів.</p>
@@ -555,7 +582,12 @@ footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var
           <p class="hint">Натисніть «Почати заново» і витягніть інший жереб — з тим самим промптом модель напише інше речення. Саме тому ChatGPT щоразу відповідає трохи інакше.</p>
         </div>
       </div>
-      <div class="factoid" style="margin-top:16px">Щоб написати відповідь на 500 слів, справжня модель проганяє цей конвеєр <b>сотні разів поспіль</b> — по одному токену за прохід.</div>
+      <div class="factoid" style="margin-top:16px">Щоб написати відповідь на 500 слів, справжня модель проганяє цей конвеєр <b>сотні разів поспіль</b> — по одному токену за прохід.
+        <details class="more">
+          <summary>Невже вона щоразу пересораховує увагу для всіх попередніх токенів? →</summary>
+          <p>Ні — це було б надто повільно. На кожному проході модель рахує Key/Value-вектори лише для <b>нового</b> токена, а вектори всіх попередніх токенів бере з пам'яті — це і називають <b>KV-кешем</b>. Саме тому довгий контекст «важить» — доводиться тримати в GPU-пам'яті кеш на кожен токен, кожен шар і кожну голову уваги одночасно. Це головна причина, чому велике вікно контексту вимагає стільки відеопам'яті.</p>
+        </details>
+      </div>
     </div>
     <p class="lockmsg">Відкриється після розподілу ймовірностей.</p>
   </li>
@@ -606,8 +638,8 @@ footer{margin-top:64px;color:var(--ink3);font-size:13px;border-top:1px solid var
       </div>
       <div>
         <div class="losslbl">Помилка (loss) <span class="mono">−log p(правильного)</span></div>
-        <canvas id="lossChart" aria-label="Графік падіння помилки під час навчання"></canvas>
-        <div id="trStats">
+        <canvas id="lossChart" aria-hidden="true"></canvas>
+        <div id="trStats" role="status" aria-live="polite">
           <span>кроків: <span class="v" id="trStepN">0</span></span>
           <span>поточна помилка: <span class="v" id="trLossN">—</span></span>
         </div>
@@ -859,12 +891,13 @@ function splitWord(w){
 }
 function tokenId(piece){return 1000+hash("tok:"+piece.toLowerCase())%48999;}
 // word unit -> array of display tokens
-function wordToTokens(unit,generated){
+function wordToTokens(unit,generated,sys){
   const isPunct=/^[.,!?—:;…]$/.test(unit);
-  if(isPunct)return[{text:unit,id:tokenId(unit),sub:false,word:unit,gen:!!generated}];
-  return splitWord(unit).map((p,i)=>({text:p,id:tokenId(p),sub:i>0,word:unit,gen:!!generated}));
+  if(isPunct)return[{text:unit,id:tokenId(unit),sub:false,word:unit,gen:!!generated,sys:!!sys}];
+  return splitWord(unit).map((p,i)=>({text:p,id:tokenId(p),sub:i>0,word:unit,gen:!!generated,sys:!!sys}));
 }
 function splitUnits(text){return text.match(/[а-яіїєґА-ЯІЇЄҐa-zA-Z0-9']+|[.,!?—:;…]/g)||[];}
+const SYS_PROMPT_WORDS=["система",":","будь","корисним",",","ввічливим","і","стислим","асистентом","."];
 
 /* ---------- embeddings ---------- */
 const DIMS=16;
@@ -941,16 +974,18 @@ function samplePick(dist){
 }
 
 /* ---------- state ---------- */
-const S={units:[],tokens:[],T:1,K:5,steps:0,sentLen:0,busy:false,finished:false,selA:null,selB:null,head:"sem"};
+const S={units:[],tokens:[],T:1,K:5,steps:0,sentLen:0,sysCount:0,busy:false,finished:false,selA:null,selB:null,head:"sem",traced:null};
 const CTX_LIMIT=22;
 
 /* ---------- rendering ---------- */
 function chipEl(t,cls){
   const el=document.createElement(cls?"button":"span");
   if(cls)el.type="button";
-  el.className="tok"+(t.sub?" sub":"")+(t.gen?" gen":"")+(cls?" "+cls:"");
+  else el.tabIndex=0;
+  el.className="tok"+(t.sub?" sub":"")+(t.gen?" gen":"")+(t.sys?" sys":"")+(cls?" "+cls:"");
   el.innerHTML=`<span>${esc(t.text)}</span><span class="tid">#${t.id}</span>`;
-  el.title=`Токен «${t.text}» · № ${t.id} у словнику`;
+  el.dataset.word=t.word.toLowerCase();
+  el.title=t.sys?`Системний токен «${t.text}» · користувач його не бачить, модель — так`:`Токен «${t.text}» · № ${t.id} у словнику · натисніть, щоб простежити його на інших кроках`;
   return el;
 }
 function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/'/g,"&#39;");}
@@ -971,6 +1006,21 @@ function renderContext(){
   $("#ctxCount").textContent=inWin+" / "+CTX_LIMIT;
   $("#ctxFill").style.width=(inWin/CTX_LIMIT*100)+"%";
   $("#ctxMeter").classList.toggle("over",n>CTX_LIMIT);
+  applyTraceHighlights();
+}
+
+/* trace one token's identity across steps 1-3 */
+function applyTraceHighlights(){
+  $$("#ctxchips .tok, #tokRow .tok").forEach(el=>el.classList.toggle("traced",!!S.traced&&el.dataset.word===S.traced));
+  $("#traceHint").style.display=S.traced?"block":"none";
+  if(S.traced)$("#tracedLbl").textContent="«"+S.traced+"»";
+  if(SP)SP.setTraced(S.traced);
+  if(!ST[3].classList.contains("locked")){renderAttention();renderArcs();}
+}
+function toggleTrace(word){
+  word=word.toLowerCase();
+  S.traced=(S.traced===word)?null:word;
+  applyTraceHighlights();
 }
 function plural(n,a,b,c){const m10=n%10,m100=n%100;if(m10===1&&m100!==11)return a;if(m10>=2&&m10<=4&&(m100<10||m100>=20))return b;return c;}
 
@@ -984,6 +1034,7 @@ async function renderTokens(animated){
     $("#stTok").textContent=i+1;
     if(animated)await sleep(110);
   }
+  applyTraceHighlights();
 }
 
 /* embeddings station */
@@ -1063,19 +1114,21 @@ function renderVecs(){
 function attnTokens(){return S.tokens.slice(-10);}
 function renderAttention(){
   const toks=attnTokens();
+  $("#sysAttnNote").style.display=toks.some(t=>t.sys)?"block":"none";
   const A=attentionMatrix(toks);
   const g=$("#attnGrid");
   g.innerHTML="";
   g.style.gridTemplateColumns=`minmax(60px,86px) repeat(${toks.length},minmax(34px,44px))`;
   // header row
+  const isTraced=t=>!!S.traced&&t.word.toLowerCase()===S.traced;
   g.appendChild(cell("",""));
-  toks.forEach(t=>{const c=cell(t.text,"alab col");c.title=t.text;g.appendChild(c);});
+  toks.forEach(t=>{const c=cell(t.text,"alab col"+(t.sys?" syslab":"")+(isTraced(t)?" traced":""));c.title=t.text;g.appendChild(c);});
   toks.forEach((tq,i)=>{
-    const lab=cell(tq.text,"alab");lab.title=tq.text;g.appendChild(lab);
+    const lab=cell(tq.text,"alab"+(tq.sys?" syslab":"")+(isTraced(tq)?" traced":""));lab.title=tq.text;g.appendChild(lab);
     toks.forEach((tk,j)=>{
-      if(j>i){const c=cell("","acell masked");c.setAttribute("aria-hidden","true");g.appendChild(c);return;}
+      if(j>i){const c=cell("","acell masked"+((isTraced(tq)||isTraced(tk))?" traced-cell":""));c.setAttribute("aria-hidden","true");g.appendChild(c);return;}
       const w=A[i][j];
-      const c=cell(Math.round(w*100),"acell");
+      const c=cell(Math.round(w*100),"acell"+((isTraced(tq)||isTraced(tk))?" traced-cell":""));
       c.style.background=`color-mix(in srgb, var(--accent) ${Math.round(Math.min(1,w*1.35)*88)}%, var(--surface2))`;
       if(w>.45)c.style.color="#fff";
       const show=()=>{
@@ -1174,7 +1227,7 @@ function buildSpace(){
     sprite.position.copy(mesh.position);
     sprite.visible=false;
     root.add(mesh);root.add(hit);root.add(sprite);
-    const p={word,group,mesh,hit,sprite,base:col,_hl:false,_focus:false};
+    const p={word,group,mesh,hit,sprite,base:col,_hl:false,_focus:false,_traced:false};
     pts.push(p);return p;
   }
   for(const g in GROUPS)for(const w of GROUPS[g])addWord(w,g);
@@ -1250,9 +1303,18 @@ function buildSpace(){
   }
   function refreshVisibility(){
     pts.forEach(p=>{
-      p.sprite.visible=p._hl||p._focus||p===hoverPt;
+      p.sprite.visible=p._hl||p._focus||p._traced||p===hoverPt;
       p.sprite.material.opacity=p._hl?1:.85;
     });
+  }
+  const traceRing=new THREE.Mesh(new THREE.SphereGeometry(.27,20,14),new THREE.MeshBasicMaterial({color:ink,wireframe:true,transparent:true,opacity:.95}));
+  traceRing.visible=false;root.add(traceRing);
+  function setTraced(word){
+    pts.forEach(p=>p._traced=(!!word&&p.word===word));
+    const p=word?pts.find(q=>q.word===word):null;
+    if(p){traceRing.visible=true;traceRing.position.copy(p.mesh.position);}
+    else traceRing.visible=false;
+    refreshVisibility();
   }
   function select(p){
     lines.clear();
@@ -1307,7 +1369,8 @@ function buildSpace(){
   }
   tick();
 
-  SP={highlight,select,pts,camera,root,canvas,dispose(){alive=false;ro.disconnect();renderer.dispose();}};
+  SP={highlight,select,setTraced,pts,camera,root,canvas,dispose(){alive=false;ro.disconnect();renderer.dispose();}};
+  setTraced(S.traced);
   window.SP_DEBUG=SP;
 }
 
@@ -1413,7 +1476,7 @@ function updateProgress(){
 }
 
 function resetAll(){
-  S.units=[];S.tokens=[];S.steps=0;S.sentLen=0;S.finished=false;S.busy=false;S.selA=S.selB=null;
+  S.units=[];S.tokens=[];S.steps=0;S.sentLen=0;S.sysCount=0;S.finished=false;S.busy=false;S.selA=S.selB=null;S.traced=null;
   S.autoStop=true;
   for(let i=1;i<=5;i++)setStage(ST[i],"locked");
   $("#genLog").innerHTML="";$("#genDone").style.display="none";
@@ -1427,9 +1490,11 @@ async function feed(){
   const text=$("#prompt").value.trim();
   if(!text)return;
   S.busy=true;
-  S.units=splitUnits(text);
-  S.tokens=S.units.flatMap(u=>wordToTokens(u,false));
-  S.steps=0;S.sentLen=0;S.finished=false;S.selA=S.selB=null;
+  const sysOn=$("#sysPromptChk").checked;
+  S.sysCount=sysOn?SYS_PROMPT_WORDS.length:0;
+  S.units=[...(sysOn?SYS_PROMPT_WORDS:[]),...splitUnits(text)];
+  S.tokens=S.units.flatMap((u,i)=>wordToTokens(u,false,i<S.sysCount));
+  S.steps=0;S.sentLen=0;S.finished=false;S.selA=S.selB=null;S.traced=null;
   $("#genLog").innerHTML="";$("#genDone").style.display="none";
   for(let i=2;i<=5;i++)setStage(ST[i],"locked");
   renderContext();
@@ -1712,6 +1777,17 @@ $$("#topkSeg button").forEach(b=>b.addEventListener("click",()=>{
 }));
 
 $("#globalReset").addEventListener("click",resetAll);
+function traceDelegate(e){
+  const t=e.target.closest(".tok");
+  if(!t||!t.dataset.word)return;
+  if(e.type==="keydown"&&e.key!=="Enter"&&e.key!==" ")return;
+  if(e.type==="keydown")e.preventDefault();
+  toggleTrace(t.dataset.word);
+}
+$("#ctxchips").addEventListener("click",traceDelegate);
+$("#ctxchips").addEventListener("keydown",traceDelegate);
+$("#tokRow").addEventListener("click",traceDelegate);
+$("#tokRow").addEventListener("keydown",traceDelegate);
 
 /* permalink: prompt + temperature + top-k in the URL hash */
 function syncHash(){
